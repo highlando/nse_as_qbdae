@@ -1,17 +1,21 @@
 import dolfin
 import scipy.sparse as sps
 import numpy as np
-from dolfin import dx
+from dolfin import dx, grad, inner
 
 dolfin.parameters.linear_algebra_backend = "uBLAS"
 
-N = 4
+N = 6
 mesh = dolfin.UnitSquareMesh(N, N)
 
 V = dolfin.FunctionSpace(mesh, 'CG', 2)
+W = dolfin.VectorFunctionSpace(mesh, 'CG', 2)
 
 v = dolfin.TrialFunction(V)
-u = dolfin.TestFunction(V)
+vt = dolfin.TestFunction(V)
+
+w = dolfin.TrialFunction(W)
+wt = dolfin.TestFunction(W)
 
 dxnl, dynl = [], []
 for i in range(V.dim()):
@@ -19,8 +23,8 @@ for i in range(V.dim()):
     bvec = np.zeros((V.dim(), ))
     bvec[i] = 1
     bi.vector()[:] = bvec
-    nxi = dolfin.assemble(u.dx(0)*bi*v*dx)
-    nyi = dolfin.assemble(u.dx(1)*bi*v*dx)
+    nxi = dolfin.assemble(v.dx(0)*bi*vt*dx)
+    nyi = dolfin.assemble(v.dx(1)*bi*vt*dx)
 
     rows, cols, values = nxi.data()
     nxim = sps.csr_matrix((values, cols, rows))
@@ -38,20 +42,33 @@ dyn = sps.hstack(dynl)
 hpart = sps.hstack([dxn, dyn])
 
 NV = V.dim()
-hmat = sps.vstack([sps.hstack([hpart, sps.csc_matrix((NV, NV**2))]),
-                   sps.hstack([sps.csc_matrix((NV, NV**2)), hpart])])
+hmat = sps.vstack([sps.hstack([hpart, sps.csc_matrix((NV, 2*NV**2))]),
+                   sps.hstack([sps.csc_matrix((NV, 2*NV**2)), hpart])])
 
 # f = dolfin.Expression('1')
-f = dolfin.Expression('x[0]*x[1]')
-# f = dolfin.Expression('x[1]')
-v1 = dolfin.interpolate(f,  V)
+# xexp = 'x[0]*x[1]'
+# yexp = 'x[0]*x[1]'
 
-nform = dolfin.assemble(u.dx(0)*v1*v*dx)
+xexp = 'x[1]'
+yexp = '0'
+
+f = dolfin.Expression((xexp, yexp))
+fx = dolfin.Expression(xexp)
+fy = dolfin.Expression(yexp)
+
+u = dolfin.interpolate(f,  W)
+ux = dolfin.interpolate(fx,  V)
+uy = dolfin.interpolate(fy,  V)
+
+nform = dolfin.assemble(inner(grad(w)*u, wt) * dx)
 rows, cols, values = nform.data()
 nmat = sps.csr_matrix((values, cols, rows))
 
-vvec = np.atleast_2d(v1.vector().array()).T
+uvec = np.atleast_2d(u.vector().array()).T
+uvecx = np.atleast_2d(ux.vector().array()).T
+uvecy = np.atleast_2d(uy.vector().array()).T
+uvecxy = np.vstack([uvecx, uvecy])
 
-print np.linalg.norm(nmat*vvec)
-print np.linalg.norm(dxn*np.kron(vvec, vvec))
-print np.linalg.norm(nmat*vvec - dxn*np.kron(vvec, vvec))
+print np.linalg.norm(nmat*uvec)
+print np.linalg.norm(hmat*np.kron(uvecxy, uvecxy))
+# print np.linalg.norm(nmat*uvec - hmat*np.kron(uvecxy, uvecxy))
