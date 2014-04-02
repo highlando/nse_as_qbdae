@@ -19,39 +19,34 @@ def ass_convmat_asmatquad():
     w = dolfin.TrialFunction(W)
     wt = dolfin.TestFunction(W)
 
-    chix = dolfin.Expression(('1', '0'))
-    chiy = dolfin.Expression(('0', '1'))
+    NV = V.dim()
+    nlist = []
+    for k in range(V.dim()):
+        # iterate for the rows
+        ki = dolfin.Function(V)
+        kvec = np.zeros((V.dim(), ))
+        kvec[k] = 1
+        ki.vector()[:] = kvec
+        nklist, nyklist = [], []
+        for i in range(V.dim()):
+            # iterate for the columns
+            bi = dolfin.Function(V)
+            bvec = np.zeros((V.dim(), ))
+            bvec[i] = 1
+            bi.vector()[:] = bvec
 
-    dxnl, dynl = [], []
-    for i in range(V.dim()):
-        bi = dolfin.Function(V)
-        bvec = np.zeros((V.dim(), ))
-        bvec[i] = 1
-        bi.vector()[:] = bvec
-        nxi = dolfin.assemble(v*bi.dx(0)*inner(wt, chix)*dx)
-        nyi = dolfin.assemble(v*bi.dx(1)*inner(wt, chiy)*dx)
+            nxik = dolfin.assemble(v * bi.dx(0) * ki * dx)
+            nyik = dolfin.assemble(v * bi.dx(1) * ki * dx)
 
-        rows, cols, values = nxi.data()
-        nxim = sps.csr_matrix((values, cols, rows))
-        nxim.eliminate_zeros()
+            nklist.extend([sps.csr_matrix(nxik.data()),
+                           sps.csr_matrix(nyik.data())])
 
-        rows, cols, values = nyi.data()
-        nyim = sps.csr_matrix((values, cols, rows))
-        nyim.eliminate_zeros()
+        nk = sps.hstack(nklist)
 
-        dxnl.extend([nxim, nyim])
-        dynl.extend([nxim, nyim])
+        nlist.extend([sps.hstack([nk, sps.csc_matrix((1, 2 * NV ** 2))]),
+                      sps.hstack([sps.csc_matrix((1, 2 * NV ** 2)), nk])])
 
-    dxn = sps.hstack(dxnl)
-    dyn = sps.hstack(dynl)
-
-    # hxpart = sps.hstack([dxn, 0*dyn])
-
-    # NV = V.dim()
-    # hmat = sps.vstack([sps.hstack([dxn, sps.csc_matrix((NV, 2 * NV ** 2))]),
-    #                    sps.hstack([sps.csc_matrix((NV, 2 * NV ** 2)), dyn])])
-
-    hmat = sps.hstack([dxn, dyn])
+    hmat = sps.vstack(nlist, format='csc')
 
     # xexp = 'x[0]*x[1]'
     # yexp = 'x[0]*x[1]*x[1]'
@@ -87,11 +82,12 @@ def ass_convmat_asmatquad():
     shifwinds = np.r_[wxinds, wyinds]
 
     hmat_rowswpdt = col_columns_atend(hmat.T, wyinds)
+    nmat_rowswpdt = col_columns_atend(nmat.T, wyinds)
 
     print np.linalg.norm(hmat_rowswpdt.T*np.kron(uvecxy, uvecxy))
-    print np.linalg.norm(nmat*uvec - hmat_rowswpdt.T*np.kron(uvecxy, uvecxy))
 
     print np.c_[hmat*np.kron(uvecxy, uvecxy),
+                nmat_rowswpdt.T*uvec,
                 nmat*uvec,
                 hmat_rowswpdt.T*np.kron(uvecxy, uvecxy)]
 
