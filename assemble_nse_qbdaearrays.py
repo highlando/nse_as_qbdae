@@ -14,10 +14,13 @@ def ass_convmat_asmatquad():
     W = dolfin.VectorFunctionSpace(mesh, 'CG', 1)
 
     v = dolfin.TrialFunction(V)
-    vt = dolfin.TestFunction(V)
+    # vt = dolfin.TestFunction(V)
 
     w = dolfin.TrialFunction(W)
     wt = dolfin.TestFunction(W)
+
+    chix = dolfin.Expression(('1', '0'))
+    chiy = dolfin.Expression(('0', '1'))
 
     dxnl, dynl = [], []
     for i in range(V.dim()):
@@ -25,8 +28,8 @@ def ass_convmat_asmatquad():
         bvec = np.zeros((V.dim(), ))
         bvec[i] = 1
         bi.vector()[:] = bvec
-        nxi = dolfin.assemble(v * bi.dx(0) * vt * dx)
-        nyi = dolfin.assemble(v * bi.dx(1) * vt * dx)
+        nxi = dolfin.assemble(v*bi.dx(0)*inner(wt, chix)*dx)
+        nyi = dolfin.assemble(v*bi.dx(1)*inner(wt, chiy)*dx)
 
         rows, cols, values = nxi.data()
         nxim = sps.csr_matrix((values, cols, rows))
@@ -44,9 +47,11 @@ def ass_convmat_asmatquad():
 
     # hxpart = sps.hstack([dxn, 0*dyn])
 
-    NV = V.dim()
-    hmat = sps.vstack([sps.hstack([dxn, sps.csc_matrix((NV, 2 * NV ** 2))]),
-                       sps.hstack([sps.csc_matrix((NV, 2 * NV ** 2)), dyn])])
+    # NV = V.dim()
+    # hmat = sps.vstack([sps.hstack([dxn, sps.csc_matrix((NV, 2 * NV ** 2))]),
+    #                    sps.hstack([sps.csc_matrix((NV, 2 * NV ** 2)), dyn])])
+
+    hmat = sps.hstack([dxn, dyn])
 
     # xexp = 'x[0]*x[1]'
     # yexp = 'x[0]*x[1]*x[1]'
