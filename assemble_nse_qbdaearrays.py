@@ -10,8 +10,8 @@ def ass_convmat_asmatquad():
     N = 2
     mesh = dolfin.UnitSquareMesh(N, N)
 
-    V = dolfin.FunctionSpace(mesh, 'CG', 1)
-    W = dolfin.VectorFunctionSpace(mesh, 'CG', 1)
+    V = dolfin.FunctionSpace(mesh, 'CG', 2)
+    W = dolfin.VectorFunctionSpace(mesh, 'CG', 2)
 
     v = dolfin.TrialFunction(V)
     # vt = dolfin.TestFunction(V)
