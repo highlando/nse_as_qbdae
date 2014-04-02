@@ -7,7 +7,7 @@ dolfin.parameters.linear_algebra_backend = "uBLAS"
 
 
 def ass_convmat_asmatquad():
-    N = 2
+    N = 9
     mesh = dolfin.UnitSquareMesh(N, N)
 
     V = dolfin.FunctionSpace(mesh, 'CG', 2)
@@ -82,14 +82,14 @@ def ass_convmat_asmatquad():
     shifwinds = np.r_[wxinds, wyinds]
 
     hmat_rowswpdt = col_columns_atend(hmat.T, wyinds)
-    nmat_rowswpdt = col_columns_atend(nmat.T, wyinds)
+    # nmat_rowswpdt = col_columns_atend(nmat.T, wyinds)
 
     print np.linalg.norm(hmat_rowswpdt.T*np.kron(uvecxy, uvecxy))
 
-    print np.c_[hmat*np.kron(uvecxy, uvecxy),
-                nmat_rowswpdt.T*uvec,
-                nmat*uvec,
-                hmat_rowswpdt.T*np.kron(uvecxy, uvecxy)]
+    # print np.c_[hmat*np.kron(uvecxy, uvecxy),
+    #             nmat_rowswpdt.T*uvec,
+    #             nmat*uvec,
+    #             hmat_rowswpdt.T*np.kron(uvecxy, uvecxy)]
 
     print np.linalg.norm(uvec[shifwinds] - uvecxy)
 
