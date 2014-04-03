@@ -14,39 +14,60 @@ def ass_convmat_asmatquad():
     W = dolfin.VectorFunctionSpace(mesh, 'CG', 2)
 
     v = dolfin.TrialFunction(V)
-    # vt = dolfin.TestFunction(V)
+    vt = dolfin.TestFunction(V)
 
     w = dolfin.TrialFunction(W)
     wt = dolfin.TestFunction(W)
 
-    NV = V.dim()
-    nlist = []
-    for k in range(V.dim()):
-        # iterate for the rows
-        ki = dolfin.Function(V)
-        kvec = np.zeros((V.dim(), ))
-        kvec[k] = 1
-        ki.vector()[:] = kvec
-        nklist, nyklist = [], []
-        for i in range(V.dim()):
-            # iterate for the columns
-            bi = dolfin.Function(V)
-            bvec = np.zeros((V.dim(), ))
-            bvec[i] = 1
-            bi.vector()[:] = bvec
+    def _pad_csrmats_wzerorows(smat, wheretoput='before'):
+        """add zero rows before/after each row
 
-            nxik = dolfin.assemble(v * bi.dx(0) * ki * dx)
-            nyik = dolfin.assemble(v * bi.dx(1) * ki * dx)
+        """
+        indpeter = smat.indptr
+        auxindp = np.c_[indpeter, indpeter].flatten()
+        if wheretoput == 'after':
+            smat.indptr = auxindp[1:]
+        else:
+            smat.indptr = auxindp[:-1]
 
-            nklist.extend([sps.csr_matrix(nxik.data()),
-                           sps.csr_matrix(nyik.data())])
+        smat._shape = (2*smat.shape[0], smat.shape[1])
 
-        nk = sps.hstack(nklist)
+        return smat
 
-        nlist.extend([sps.hstack([nk, sps.csc_matrix((1, 2 * NV ** 2))]),
-                      sps.hstack([sps.csc_matrix((1, 2 * NV ** 2)), nk])])
+    def _shuff_mrg_csrmats(xm, ym):
+        """shuffle merge csr mats [xxx],[yyy] -> [xyxyxy]
 
-    hmat = sps.vstack(nlist, format='csc')
+        """
+        xm.indices = 2*xm.indices
+        ym.indices = 2*ym.indices + 1
+        xm._shape = (xm.shape[0], 2*xm.shape[1])
+        ym._shape = (ym.shape[0], 2*ym.shape[1])
+        return xm + ym
+
+    nklist = []
+    for i in range(V.dim()):
+        # iterate for the columns
+        bi = dolfin.Function(V)
+        bvec = np.zeros((V.dim(), ))
+        bvec[i] = 1
+        bi.vector()[:] = bvec
+
+        nxi = dolfin.assemble(v * bi.dx(0) * vt * dx)
+        nyi = dolfin.assemble(v * bi.dx(1) * vt * dx)
+
+        rows, cols, values = nxi.data()
+        nxim = sps.csr_matrix((values, cols, rows))
+
+        rows, cols, values = nyi.data()
+        nyim = sps.csr_matrix((values, cols, rows))
+
+        nxyim = _shuff_mrg_csrmats(nxim, nyim)
+        nyxxim = _pad_csrmats_wzerorows(nxyim.copy(), wheretoput='after')
+        nyxyim = _pad_csrmats_wzerorows(nxyim.copy(), wheretoput='before')
+
+        nklist.extend([nyxxim, nyxyim])
+
+    hmat = sps.hstack(nklist, format='csc')
 
     # xexp = 'x[0]*x[1]'
     # yexp = 'x[0]*x[1]*x[1]'
@@ -73,7 +94,7 @@ def ass_convmat_asmatquad():
     uvecxy = np.vstack([uvecx, uvecy])
 
     print np.linalg.norm(nmat * uvec)
-    print np.linalg.norm(hmat * np.kron(uvecxy, uvecxy))
+    print np.linalg.norm(hmat * np.kron(uvec, uvec))
     # print np.linalg.norm(nmat*uvec - hmat*np.kron(uvecxy, uvecxy))
 
     wxinds = W.sub(0).dofmap().dofs()
