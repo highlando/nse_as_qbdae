@@ -24,6 +24,7 @@ def test_qbdae_ass():
 def ass_convmat_asmatquad(W=None, invindsw=None):
     """ assemble the convection matrix H, so that N(v)v = H[v.v]
 
+    note that the boundary conditions have to be treated properly
     """
     mesh = W.mesh()
 
