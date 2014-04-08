@@ -1,0 +1,6 @@
+#!/bin/bash
+
+git pull
+FILETOEDIT=assemble_nse_qbdaearrays.py
+echo $FILETOEDIT
+gvim --remote-silent $FILETOEDIT 

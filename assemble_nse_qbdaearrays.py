@@ -3,15 +3,25 @@ import scipy.sparse as sps
 import numpy as np
 from dolfin import dx, grad, inner
 
+import dolfin_navier_scipy as dns
+
 dolfin.parameters.linear_algebra_backend = "uBLAS"
 
 
-def ass_convmat_asmatquad():
-    N = 29
-    mesh = dolfin.UnitSquareMesh(N, N)
+def test_qbdae_ass():
+    femp, stokesmatsc, rhsd_vfrc, rhsd_stbc, \
+        data_prfx, ddir, proutdir = \
+        dns.problem_setups.get_sysmats(problem='drivencavity', N=10, nu=1e-2)
+
+    invinds = femp['invinds']
+    ass_convmat_asmatquad(V=femp['V'], invinds=invinds)
+
+
+def ass_convmat_asmatquad(W=None, invinds=None):
+    mesh = W.mesh()
 
     V = dolfin.FunctionSpace(mesh, 'CG', 2)
-    W = dolfin.VectorFunctionSpace(mesh, 'CG', 2)
+    # W = dolfin.VectorFunctionSpace(mesh, 'CG', 2)
 
     v = dolfin.TrialFunction(V)
     vt = dolfin.TestFunction(V)
@@ -113,4 +123,4 @@ def ass_convmat_asmatquad():
 
 
 if __name__ == '__main__':
-    ass_convmat_asmatquad()
+    test_qbdae_ass()
